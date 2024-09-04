@@ -1,35 +1,33 @@
+import pandas as pd
 import json
-import os
+from markdownify import markdownify as md
 
-# Get the directory of the current script
-script_dir = os.path.dirname(os.path.abspath(__file__))
+input_file_path = r'C:\Users\Razer\Desktop\爬蟲\supreme_court_toc.jsonl'  # 输入文件路径
+output_file_path = r'C:\Users\Razer\Desktop\爬蟲\output.jsonl'  # 输出文件路径
 
-# Input and output file paths
-input_file = os.path.join(script_dir, "C:/Users/Razer/Desktop/爬蟲/Supreme Court_ Table Of Contents _ Supreme Court _ US Law _ LII _ Legal Information Institute.json")
+# Read the JSON Lines file
+data = []
+with open(input_file_path, 'r', encoding='utf-8') as file:
+    for line in file:
+        data.append(json.loads(line.strip()))
 
-output_file = os.path.join(script_dir, "supreme_court_toc.jsonl")
+# 将数据转换为DataFrame
+df = pd.DataFrame(data)
 
-def process_json(data):
-    if isinstance(data, dict):
-        if any(key.lower() in ['path', 'title', 'content'] for key in data.keys()):
-            return data
-        return {k: process_json(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [process_json(item) for item in data]
-    else:
-        return data
-
-# Read the input JSON file
-with open(input_file, 'r', encoding='utf-8') as f:
-    data = json.load(f)
-
-# Process the data
-processed_data = process_json(data)
-
-# Write the processed data to a JSON Lines file
-with open(output_file, 'w', encoding='utf-8') as f:
-    for item in processed_data:
-        json.dump(item, f, ensure_ascii=False)
-        f.write('\n')
-
-print(f"Processed JSON Lines file has been saved as {output_file}")
+# 确保只选择需要的列
+if 'path' in df.columns and 'content' in df.columns:
+    df['path'] = df['path'].str.replace(r'\t', '', regex=True)  # 移除所有制表符
+    df['path'] = df['path'].str.replace(r'\s+', '_', regex=True)  # 将一个或多个空格替换成下划线
+    
+    df['content'] = df['content'].apply(lambda x: md(x))
+    
+    # 将DataFrame转换回字典
+    transformed_data = df.to_dict(orient='records')
+    
+    # 写入新的JSON Lines文件
+    with open(output_file_path, 'w', encoding='utf-8') as file:
+        for item in transformed_data:
+            json.dump(item, file, ensure_ascii=False)
+            file.write('\n')
+    
+    print(f"Processed JSON Lines file has been saved as {output_file_path}")
